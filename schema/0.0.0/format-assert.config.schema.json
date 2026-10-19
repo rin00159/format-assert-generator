@@ -1,0 +1,57 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://raw.githubusercontent.com/rin00159/format-assert-generator/refs/heads/main/schema/0.0.0/format-assert.config.schema.json",
+	"title": "Format Assert Generator Configuration Schema",
+	"description": "Configuration schema for format-assert-generator (format-assert.config.json)",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"$schema": {
+			"type": "string",
+			"description": "JSON Schema reference URL or path"
+		},
+		"options": {
+			"type": "object",
+			"additionalProperties": false,
+			"description": "Options for format-assert-generator",
+			"properties": {
+				"mode": {
+					"enum": ["fast", "full", "both"],
+					"description": "Output directory mode: fast, full, or both (default: both)"
+				},
+				"source": {
+					"type": "string",
+					"description": "Custom dictionary location (URL / file) instead of bundled; '{mode}' is replaced by fast/full"
+				},
+				"keepFormat": {
+					"type": "boolean",
+					"description": "Keep 'format' keyword next to the injected 'pattern'"
+				},
+				"onUnresolved": {
+					"enum": ["keep", "drop", "error"],
+					"description": "Behavior for formats without pattern (e.g. regex, int32); default: keep"
+				},
+				"includeDotDirs": {
+					"oneOf": [
+						{ "type": "boolean" },
+						{ "type": "array", "items": { "type": "string" } }
+					],
+					"description": "Include dot-directories below schema/<version> (boolean for all, or string array for specific names)"
+				},
+				"lintRegex": {
+					"enum": ["ecma", "re2"],
+					"description": "Warn about generated patterns the target engine cannot handle (re2: no lookaround or backreferences)"
+				},
+				"maxPatternLength": {
+					"type": "integer",
+					"minimum": 1,
+					"description": "Warn about generated patterns longer than n characters"
+				},
+				"strict": {
+					"type": "boolean",
+					"description": "Exit 1 when a format could not be converted or a lint warning was raised"
+				}
+			}
+		}
+	}
+}

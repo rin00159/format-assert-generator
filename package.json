@@ -16,6 +16,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "ajv": "^8.17.1",
     "format-assert-compiler": "file:../format-assert-compiler",
     "jsonschema-lib-layout": "file:../jsonschema-lib-layout"
   },

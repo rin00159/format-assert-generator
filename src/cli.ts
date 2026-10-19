@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
 import { generate } from './generate.js';
+import { CONFIG_FILE, loadConfigFile, resolveCliOptions } from './config.js';
 import type { FormatMode } from 'format-assert-compiler';
 
 const HELP = `Usage: format-assert-generator <schema/version directory> [options]
@@ -19,13 +20,15 @@ writes format-assert-fast/ and format-assert-full/ mirrors in which "format" is 
       --strict                  exit 1 when a format could not be converted or a lint warning was raised
       --check                   write nothing; exit 1 when the generated directories are out of date
   -h, --help
+
+Optional <root>/${CONFIG_FILE} holds the same options (camelCase inside "options").
 `;
 
 async function main(): Promise<number> {
   const { values, positionals } = parseArgs({
     allowPositionals: true,
     options: {
-      mode: { type: 'string', default: 'both' },
+      mode: { type: 'string' },
       source: { type: 'string' },
       'keep-format': { type: 'boolean' },
       'on-unresolved': { type: 'string' },
@@ -47,23 +50,45 @@ async function main(): Promise<number> {
     process.stderr.write(HELP);
     return 2;
   }
-  if (!['fast', 'full', 'both'].includes(values.mode!)) throw new Error('--mode must be fast, full or both');
-  const onUnresolved = values['on-unresolved'];
-  if (onUnresolved && !['keep', 'drop', 'error'].includes(onUnresolved)) throw new Error('--on-unresolved must be keep, drop or error');
 
-  const lintEngine = values['lint-regex'];
-  if (lintEngine && !['ecma', 're2'].includes(lintEngine)) throw new Error('--lint-regex must be ecma or re2');
-  const maxLength = values['max-pattern-length'] === undefined ? undefined : Number(values['max-pattern-length']);
-  if (maxLength !== undefined && !(maxLength > 0)) throw new Error('--max-pattern-length must be a positive number');
-  const modes: FormatMode[] = values.mode === 'both' ? ['fast', 'full'] : [values.mode as FormatMode];
+  const { config } = await loadConfigFile(versionDir);
+
+  const maxLengthInput = values['max-pattern-length'] === undefined ? undefined : Number(values['max-pattern-length']);
+  if (maxLengthInput !== undefined && !(maxLengthInput > 0)) throw new Error('--max-pattern-length must be a positive number');
+
+  const resolved = resolveCliOptions(
+    {
+      mode: values.mode,
+      source: values.source,
+      keepFormat: values['keep-format'],
+      onUnresolved: values['on-unresolved'],
+      includeDotDirs: values['include-dot-dirs'] ? true : values['include-dot-dir'],
+      lintRegex: values['lint-regex'],
+      maxPatternLength: maxLengthInput,
+      strict: values.strict,
+    },
+    config.options,
+  );
+
+  for (const w of resolved.warnings) console.error(`warning: ${w}`);
+
+  if (!['fast', 'full', 'both'].includes(resolved.mode)) throw new Error('--mode must be fast, full or both');
+  if (resolved.onUnresolved && !['keep', 'drop', 'error'].includes(resolved.onUnresolved)) {
+    throw new Error('--on-unresolved must be keep, drop or error');
+  }
+  if (resolved.lintRegex && !['ecma', 're2'].includes(resolved.lintRegex)) {
+    throw new Error('--lint-regex must be ecma or re2');
+  }
+
+  const modes: FormatMode[] = resolved.mode === 'both' ? ['fast', 'full'] : [resolved.mode as FormatMode];
   const res = await generate({
     versionDir,
     modes,
-    source: values.source,
+    source: resolved.source,
     check: values.check,
-    lint: lintEngine || maxLength ? { engine: lintEngine as 'ecma' | 're2' | undefined, maxLength } : undefined,
-    includeDotDirs: values['include-dot-dirs'] ? true : values['include-dot-dir'],
-    compile: { keepFormat: values['keep-format'], onUnresolved: onUnresolved as 'keep' | 'drop' | 'error' | undefined },
+    lint: resolved.lintRegex || resolved.maxPatternLength ? { engine: resolved.lintRegex, maxLength: resolved.maxPatternLength } : undefined,
+    includeDotDirs: resolved.includeDotDirs,
+    compile: { keepFormat: resolved.keepFormat, onUnresolved: resolved.onUnresolved },
   });
 
   for (const w of res.warnings) console.error(`warning: ${w}`);
@@ -80,7 +105,7 @@ async function main(): Promise<number> {
     for (const s of res.stale) console.error(`out of date: ${s}`);
     return 1;
   }
-  return values.strict && (unresolved > 0 || res.lintWarnings.length > 0) ? 1 : 0;
+  return resolved.strict && (unresolved > 0 || res.lintWarnings.length > 0) ? 1 : 0;
 }
 
 main().then(
