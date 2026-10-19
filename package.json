@@ -1,0 +1,27 @@
+{
+  "name": "format-assert-generator",
+  "version": "0.1.0",
+  "description": "For every *.schema.json of a JSON Schema library version directory, generate format-assert-fast/ and format-assert-full/ copies in which `format` is replaced by `pattern`",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "bin": { "format-assert-generator": "./dist/cli.js" },
+  "files": ["dist"],
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "format-assert-compiler": "file:../format-assert-compiler",
+    "jsonschema-lib-layout": "file:../jsonschema-lib-layout"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}
