@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
 import { generate } from './generate.js';
-import { CONFIG_FILE, loadConfigFile, resolveCliOptions } from './config.js';
+import { CONFIG_FILE, loadConfigFile, resolveCliOptions, writeConfigFile, type CliFlags } from './config.js';
 import type { FormatMode } from 'format-assert-compiler';
 
 const HELP = `Usage: format-assert-generator <schema/version directory> [options]
@@ -19,6 +19,7 @@ writes format-assert-fast/ and format-assert-full/ mirrors in which "format" is 
       --max-pattern-length <n>  warn about generated patterns longer than n characters
       --strict                  exit 1 when a format could not be converted or a lint warning was raised
       --check                   write nothing; exit 1 when the generated directories are out of date
+      --write-config            write or update format-assert.config.json from options given on the command line
   -h, --help
 
 Optional <root>/${CONFIG_FILE} holds the same options (camelCase inside "options").
@@ -38,6 +39,7 @@ async function main(): Promise<number> {
       'max-pattern-length': { type: 'string' },
       strict: { type: 'boolean' },
       check: { type: 'boolean' },
+      'write-config': { type: 'boolean' },
       help: { type: 'boolean', short: 'h' },
     },
   });
@@ -51,24 +53,28 @@ async function main(): Promise<number> {
     return 2;
   }
 
-  const { config } = await loadConfigFile(versionDir);
-
   const maxLengthInput = values['max-pattern-length'] === undefined ? undefined : Number(values['max-pattern-length']);
   if (maxLengthInput !== undefined && !(maxLengthInput > 0)) throw new Error('--max-pattern-length must be a positive number');
 
-  const resolved = resolveCliOptions(
-    {
-      mode: values.mode,
-      source: values.source,
-      keepFormat: values['keep-format'],
-      onUnresolved: values['on-unresolved'],
-      includeDotDirs: values['include-dot-dirs'] ? true : values['include-dot-dir'],
-      lintRegex: values['lint-regex'],
-      maxPatternLength: maxLengthInput,
-      strict: values.strict,
-    },
-    config.options,
-  );
+  const cliFlags: CliFlags = {
+    mode: values.mode,
+    source: values.source,
+    keepFormat: values['keep-format'],
+    onUnresolved: values['on-unresolved'],
+    includeDotDirs: values['include-dot-dirs'] ? true : values['include-dot-dir'],
+    lintRegex: values['lint-regex'],
+    maxPatternLength: maxLengthInput,
+    strict: values.strict,
+  };
+
+  if (values['write-config']) {
+    const { configPath } = await writeConfigFile(versionDir, cliFlags);
+    console.log(`wrote ${configPath}`);
+  }
+
+  const { config } = await loadConfigFile(versionDir);
+
+  const resolved = resolveCliOptions(cliFlags, config.options);
 
   for (const w of resolved.warnings) console.error(`warning: ${w}`);
 

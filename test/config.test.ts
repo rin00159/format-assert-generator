@@ -8,6 +8,7 @@ import {
   findProjectRoot,
   loadConfigFile,
   resolveCliOptions,
+  writeConfigFile,
 } from '../src/index.js';
 
 describe('format-assert.config schema and validation', () => {
@@ -139,5 +140,45 @@ describe('config loading and resolution', () => {
       'CLI flag --include-dot-dir(s) [".cli"] overrides config option includeDotDirs [".cfg"]',
       'CLI flag --strict overrides config option strict true',
     ]);
+  });
+
+  it('writeConfigFile creates format-assert.config.json when not present', async () => {
+    const { configPath, written } = await writeConfigFile(versionDir, {
+      mode: 'fast',
+      strict: true,
+      onUnresolved: 'drop',
+    });
+    expect(configPath).toBe(join(rootDir, CONFIG_FILE));
+    expect(written.options).toEqual({
+      mode: 'fast',
+      strict: true,
+      onUnresolved: 'drop',
+    });
+
+    const loaded = await loadConfigFile(versionDir);
+    expect(loaded.config.options).toEqual({
+      mode: 'fast',
+      strict: true,
+      onUnresolved: 'drop',
+    });
+  });
+
+  it('writeConfigFile updates existing format-assert.config.json', async () => {
+    await writeConfigFile(versionDir, {
+      mode: 'fast',
+      strict: true,
+    });
+
+    await writeConfigFile(versionDir, {
+      mode: 'full',
+      onUnresolved: 'error',
+    });
+
+    const loaded = await loadConfigFile(versionDir);
+    expect(loaded.config.options).toEqual({
+      mode: 'full',
+      strict: true,
+      onUnresolved: 'error',
+    });
   });
 });

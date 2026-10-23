@@ -31,7 +31,7 @@ schema/0.0.0/
   (Implemented by `relocateSchema` in format-assert-compiler.)
 - **Marker** `.format-assert.log.json` (generator and compiler versions, dictionary origin, source hashes). A `format-assert-*` directory is only ever cleared and rewritten
   when it contains the marker; otherwise the tool refuses. Deleted sources therefore disappear from the output.
-- **Config** `format-assert.config.json`: placed at the library root (sibling to `examples/` and `schema/`). Holds default options under an `"options"` wrapper (e.g. `mode`, `source`, `keepFormat`, `onUnresolved`, `includeDotDirs`, `lintRegex`, `maxPatternLength`, `strict`). Validated against `schema/0.0.0/format-assert.config.schema.json`. CLI flags override config options and emit a warning when conflicting.
+- **Config** `format-assert.config.json`: placed at the library root (sibling to `examples/` and `schema/`). Holds default options under an `"options"` wrapper (e.g. `mode`, `source`, `keepFormat`, `onUnresolved`, `includeDotDirs`, `lintRegex`, `maxPatternLength`, `strict`). Validated against `schema/0.0.0/format-assert.config.schema.json`. CLI flags override config options and emit a warning when conflicting. `--write-config` writes or updates this file directly from the options given on the command line.
 - **Not convertible** (`regex`, `int32`, ... see ajv-formats-jsonschema `docs/FORMATS.md`): left as-is and listed; `--on-unresolved drop|error`, `--strict` (exit 1).
 - `--source <url|file>` uses another dictionary (`{mode}` is replaced by `fast`/`full`); default is the one bundled with format-assert-compiler.
 

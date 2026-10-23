@@ -84,4 +84,25 @@ describe('CLI with format-assert.config.json', () => {
       /must be equal to one of the allowed values/,
     );
   });
+
+  it('creates format-assert.config.json when --write-config is passed', async () => {
+    const { stdout, stderr } = await exec(process.execPath, [
+      CLI_PATH,
+      versionDir,
+      '--mode',
+      'fast',
+      '--strict',
+      '--write-config',
+    ]);
+
+    expect(stdout).toMatch(/wrote .*format-assert\.config\.json/);
+    expect(stdout).toMatch(/wrote .*format-assert-fast: 1 file\(s\)/);
+    expect(stderr).toBe('');
+
+    const configContent = JSON.parse(await (await import('node:fs/promises')).readFile(join(rootDir, CONFIG_FILE), 'utf8'));
+    expect(configContent.options).toEqual({
+      mode: 'fast',
+      strict: true,
+    });
+  });
 });

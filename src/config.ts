@@ -1,10 +1,13 @@
-import { readFile, stat } from 'node:fs/promises';
+import { readFile, stat, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { Ajv } from 'ajv';
 import type { FormatMode } from 'format-assert-compiler';
 import { CONFIG_FILE, type IncludeDotDirs } from 'jsonschema-lib-layout';
 
 export { CONFIG_FILE };
+
+export const CONFIG_SCHEMA_URI =
+  'https://raw.githubusercontent.com/rin00159/format-assert-generator/refs/heads/main/schema/0.0.0/format-assert.config.schema.json';
 
 export interface FormatAssertConfigOptions {
   mode?: FormatMode | 'both';
@@ -71,6 +74,57 @@ export async function findProjectRoot(versionDir: string): Promise<string | unde
     if (s.isFile()) return candidate;
   } catch {}
   return undefined;
+}
+
+/**
+ * Resolves the project root directory where format-assert.config.json should be placed.
+ * If the config file already exists, returns its directory; otherwise assumes `<root>/schema/<version>`.
+ */
+export async function resolveProjectRoot(versionDir: string): Promise<string> {
+  const existing = await findProjectRoot(versionDir);
+  if (existing) return existing;
+  const abs = resolve(versionDir);
+  return dirname(dirname(abs));
+}
+
+/**
+ * Writes or updates format-assert.config.json with the given CLI options.
+ */
+export async function writeConfigFile(
+  versionDir: string,
+  cli: CliFlags,
+): Promise<{ configPath: string; written: FormatAssertConfigFile }> {
+  const root = await resolveProjectRoot(versionDir);
+  const configPath = join(root, CONFIG_FILE);
+
+  let existing: FormatAssertConfigFile = {};
+  try {
+    const content = await readFile(configPath, 'utf8');
+    existing = JSON.parse(content) as FormatAssertConfigFile;
+  } catch {}
+
+  const options: FormatAssertConfigOptions = {
+    ...existing.options,
+  };
+
+  if (cli.mode !== undefined) options.mode = cli.mode as FormatMode | 'both';
+  if (cli.source !== undefined) options.source = cli.source;
+  if (cli.keepFormat !== undefined) options.keepFormat = cli.keepFormat;
+  if (cli.onUnresolved !== undefined) options.onUnresolved = cli.onUnresolved as 'keep' | 'drop' | 'error';
+  if (cli.includeDotDirs !== undefined) options.includeDotDirs = cli.includeDotDirs;
+  if (cli.lintRegex !== undefined) options.lintRegex = cli.lintRegex as 'ecma' | 're2';
+  if (cli.maxPatternLength !== undefined) options.maxPatternLength = cli.maxPatternLength;
+  if (cli.strict !== undefined) options.strict = cli.strict;
+
+  const toWrite: FormatAssertConfigFile = {
+    $schema: existing.$schema ?? CONFIG_SCHEMA_URI,
+    options,
+  };
+
+  assertValidConfig(toWrite);
+
+  await writeFile(configPath, JSON.stringify(toWrite, null, '\t') + '\n', 'utf8');
+  return { configPath, written: toWrite };
 }
 
 /**
